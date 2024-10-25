@@ -54,6 +54,7 @@ from .iostream import IOPubThread
 from .ipkernel import IPythonKernel
 from .parentpoller import ParentPollerUnix, ParentPollerWindows
 from .shellchannel import ShellChannelThread
+from .thread import BaseThread
 from .zmqshell import ZMQInteractiveShell
 
 # -----------------------------------------------------------------------------
@@ -142,9 +143,9 @@ class IPKernelApp(BaseIPythonApplication, InteractiveShellApp, ConnectionFileMix
     debug_shell_socket = Any()
     stdin_socket = Any()
     iopub_socket = Any()
-    iopub_thread = Any()
-    control_thread = Any()
-    shell_channel_thread = Any()
+    iopub_thread: BaseThread
+    control_thread: BaseThread
+    shell_channel_thread: BaseThread
 
     _ports = Dict()
 

@@ -17,6 +17,7 @@ import uuid
 import warnings
 from datetime import datetime
 from signal import SIGINT, SIGTERM, Signals
+from threading import Thread
 
 from .thread import CONTROL_THREAD_NAME
 
@@ -95,17 +96,16 @@ class Kernel(SingletonConfigurable):
     implementation_version: str
     banner: str
 
-    _is_test = Bool(False)
+    _is_test: bool = False
 
     control_socket = Instance(zmq.asyncio.Socket, allow_none=True)
     control_tasks: t.Any = List()
 
     debug_shell_socket = Any()
+    control_thread: t.Optional[Thread] = None
+    shell_channel_thread: Thread
 
-    control_thread = Any()
-    shell_channel_thread = Any()
     iopub_socket = Any()
-    iopub_thread = Any()
     stdin_socket = Any()
     log: logging.Logger = Instance(logging.Logger, allow_none=True)  # type:ignore[assignment]
 
@@ -217,6 +217,9 @@ class Kernel(SingletonConfigurable):
         "shutdown_request",
         "is_complete_request",
         "interrupt_request",
+        # I have the impression that there is amix/match debug_request and do_debug_request
+        # former was from ipyparallel but is marked as deprecated, but now call do_debug_request
+        # "do_debug_request"
         # deprecated:
         "apply_request",
     ]
@@ -257,6 +260,17 @@ class Kernel(SingletonConfigurable):
         self._do_exec_accepted_params = _accepts_parameters(
             self.do_execute, ["cell_meta", "cell_id"]
         )
+
+        if not inspect.iscoroutinefunction(self.do_debug_request):
+            # warning at init time, as we want to warn early enough, even if the
+            # function is not called
+            warnings.warn(
+                "`do_debug_request` will be required to be a coroutine "
+                "function in the future. Coroutine functions have been supported "
+                "since ipykernel 6.0 (2021)",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
     async def process_control(self):
         try:
@@ -1003,13 +1017,35 @@ class Kernel(SingletonConfigurable):
         return {"status": "unknown"}
 
     async def debug_request(self, socket, ident, parent):
-        """Handle a debug request."""
+        """Handle a debug request.
+
+        Seem Deprecated
+        """
+        # If this is incorrect, remove `debug_request` from the deprecated message types
+        # at the beginning of this class
+        warnings.warn(
+            "`debug_request` is deprecated in `kernelbase.py` since ipykernel 6.10"
+            " (2022). It is only part of IPython parallel. Did you mean do_debug_request ?",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not self.session:
             return
         content = parent["content"]
-        reply_content = self.do_debug_request(content)
-        if inspect.isawaitable(reply_content):
-            reply_content = await reply_content
+        if not inspect.iscoroutinefunction(self.do_debug_request):
+            # repeat the warning at run
+            reply_content = self.do_debug_request(content)
+            warnings.warn(
+                "`do_debug_request` will be required to be a coroutine "
+                "functions in the future. coroutine functions have ben supported "
+                "since ipykernel 6.0 (2021)",
+                DeprecationWarning,
+                stacklevel=1,
+            )
+            if inspect.isawaitable(reply_content):
+                reply_content = await reply_content
+        else:
+            reply_content = await self.do_debug_request(content)
         reply_content = json_clean(reply_content)
         reply_msg = self.session.send(socket, "debug_reply", reply_content, parent, ident)
         self.log.debug("%s", reply_msg)
@@ -1128,7 +1164,12 @@ class Kernel(SingletonConfigurable):
 
     async def apply_request(self, socket, ident, parent):  # pragma: no cover
         """Handle an apply request."""
-        self.log.warning("apply_request is deprecated in kernel_base, moving to ipyparallel.")
+        warnings.warn(
+            "apply_request is deprecated in kernel_base since"
+            " IPykernel 6.10 (2022) , moving to ipyparallel.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         try:
             content = parent["content"]
             bufs = parent["buffers"]
@@ -1170,8 +1211,11 @@ class Kernel(SingletonConfigurable):
 
     async def abort_request(self, socket, ident, parent):  # pragma: no cover
         """abort a specific msg by id"""
-        self.log.warning(
-            "abort_request is deprecated in kernel_base. It is only part of IPython parallel"
+        warnings.warn(
+            "abort_request is deprecated in kernel_base since ipykernel 6.10"
+            " (2022). It is only part of IPython parallel",
+            DeprecationWarning,
+            stacklevel=2,
         )
         msg_ids = parent["content"].get("msg_ids", None)
         if isinstance(msg_ids, str):
@@ -1189,8 +1233,11 @@ class Kernel(SingletonConfigurable):
 
     async def clear_request(self, socket, idents, parent):  # pragma: no cover
         """Clear our namespace."""
-        self.log.warning(
-            "clear_request is deprecated in kernel_base. It is only part of IPython parallel"
+        warnings.warn(
+            "clear_request is deprecated in kernel_base since IPykernel 6.10"
+            " (2022). It is only part of IPython parallel",
+            DeprecationWarning,
+            stacklevel=2,
         )
         content = self.do_clear()
         if self.session:
