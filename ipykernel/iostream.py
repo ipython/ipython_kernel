@@ -170,20 +170,20 @@ class IOPubThread:
         *all* waiting events are processed in order.
         """
         # create async wrapper within coroutine
-        pipe_in = zmq.asyncio.Socket(self._pipe_in0)
-        try:
-            while True:
-                await pipe_in.recv()
-                # freeze event count so new writes don't extend the queue
-                # while we are processing
-                n_events = len(self._events)
-                for _ in range(n_events):
-                    event_f = self._events.popleft()
-                    event_f()
-        except Exception:
-            if self.thread.__stop.is_set():
-                return
-            raise
+        with zmq.asyncio.Socket(self._pipe_in0) as pipe_in:
+            try:
+                while True:
+                    await pipe_in.recv()
+                    # freeze event count so new writes don't extend the queue
+                    # while we are processing
+                    n_events = len(self._events)
+                    for _ in range(n_events):
+                        event_f = self._events.popleft()
+                        event_f()
+            except Exception:
+                if self.thread.__stop.is_set():
+                    return
+                raise
 
     def _setup_pipe_in(self):
         """setup listening pipe for IOPub from forked subprocesses"""
@@ -218,6 +218,8 @@ class IOPubThread:
             if self.thread.__stop.is_set():
                 return
             raise
+        finally:
+            self._async_pipe_in1.close()
 
     async def _handle_pipe_msg(self, msg=None):
         """handle a pipe message from a subprocess"""
