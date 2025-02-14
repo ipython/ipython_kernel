@@ -24,7 +24,10 @@ def test_ipython_start_kernel_userns():
 
     with setup_kernel(cmd) as client:
         client.inspect("custom")
-        msg = client.get_shell_msg(timeout=TIMEOUT)
+        while True:
+            msg = client.get_shell_msg(timeout=TIMEOUT)
+            if msg["msg_type"] == "inspect_reply":
+                break
         content = msg["content"]
         assert content["found"]
         text = content["data"]["text/plain"]
@@ -36,7 +39,10 @@ def test_ipython_start_kernel_userns():
         content = msg["content"]
         assert content["status"] == "ok"
         client.inspect("usermod")
-        msg = client.get_shell_msg(timeout=TIMEOUT)
+        while True:
+            msg = client.get_shell_msg(timeout=TIMEOUT)
+            if msg["msg_type"] == "inspect_reply":
+                break
         content = msg["content"]
         assert content["found"]
         text = content["data"]["text/plain"]
@@ -60,7 +66,10 @@ def test_ipython_start_kernel_no_userns():
         content = msg["content"]
         assert content["status"] == "ok"
         client.inspect("usermod")
-        msg = client.get_shell_msg(timeout=TIMEOUT)
+        while True:
+            msg = client.get_shell_msg(timeout=TIMEOUT)
+            if msg["msg_type"] == "inspect_reply":
+                break
         content = msg["content"]
         assert content["found"]
         text = content["data"]["text/plain"]

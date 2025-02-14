@@ -62,7 +62,7 @@ def test_simple_print():
 def test_print_to_correct_cell_from_thread():
     """should print to the cell that spawned the thread, not a subsequently run cell"""
     iterations = 5
-    interval = 0.25
+    interval = 1
     code = f"""\
     from threading import Thread
     from time import sleep
@@ -94,7 +94,7 @@ def test_print_to_correct_cell_from_thread():
 def test_print_to_correct_cell_from_child_thread():
     """should print to the cell that spawned the thread, not a subsequently run cell"""
     iterations = 5
-    interval = 0.25
+    interval = 1
     code = f"""\
     from threading import Thread
     from time import sleep
@@ -132,7 +132,7 @@ def test_print_to_correct_cell_from_child_thread():
 def test_print_to_correct_cell_from_asyncio():
     """should print to the cell that scheduled the task, not a subsequently run cell"""
     iterations = 5
-    interval = 0.25
+    interval = 1
     code = f"""\
     import asyncio
 

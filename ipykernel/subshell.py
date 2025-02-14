@@ -2,7 +2,8 @@
 
 from threading import current_thread
 
-import zmq.asyncio
+import zmq
+import zmq_anyio
 
 from .thread import BaseThread
 
@@ -15,17 +16,22 @@ class SubshellThread(BaseThread):
         super().__init__(name=f"subshell-{subshell_id}", **kwargs)
 
         # Inproc PAIR socket, for communication with shell channel thread.
-        self._pair_socket: zmq.asyncio.Socket | None = None
+        self._pair_socket: zmq_anyio.Socket | None = None
 
-    async def create_pair_socket(self, context: zmq.asyncio.Context, address: str) -> None:
+    async def create_pair_socket(
+        self,
+        context: zmq.Context,  # type: ignore[type-arg]
+        address: str,
+    ) -> None:
         """Create inproc PAIR socket, for communication with shell channel thread.
 
-        Should be called from this thread, so usually via add_task before the
+        Should be called from this thread, so usually via start_soon before the
         thread is started.
         """
         assert current_thread() == self
-        self._pair_socket = context.socket(zmq.PAIR)
+        self._pair_socket = zmq_anyio.Socket(context, zmq.PAIR)
         self._pair_socket.connect(address)
+        self.start_soon(self._pair_socket.start)
 
     def run(self) -> None:
         try:

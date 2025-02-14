@@ -1,14 +1,13 @@
-import asyncio
 import logging
-import os
 from math import inf
+from threading import Event
 from typing import Any, Callable, no_type_check
 from unittest.mock import MagicMock
 
 import pytest
 import zmq
-import zmq.asyncio
-from anyio import create_memory_object_stream, create_task_group
+import zmq_anyio
+from anyio import create_memory_object_stream, create_task_group, sleep
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from jupyter_client.session import Session
 
@@ -21,11 +20,6 @@ try:
 except ImportError:
     # Windows
     resource = None  # type:ignore
-
-
-@pytest.fixture()
-def anyio_backend():
-    return "asyncio"
 
 
 pytestmark = pytest.mark.anyio
@@ -44,11 +38,6 @@ if resource is not None:
         hard = soft
 
     resource.setrlimit(resource.RLIMIT_NOFILE, (soft, hard))
-
-
-# Enforce selector event loop on Windows.
-if os.name == "nt":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # type:ignore
 
 
 class TestSession(Session):
@@ -77,21 +66,21 @@ class TestSession(Session):
 
 
 class KernelMixin:
-    shell_socket: zmq.asyncio.Socket
-    control_socket: zmq.asyncio.Socket
+    shell_socket: zmq_anyio.Socket
+    control_socket: zmq_anyio.Socket
     stop: Callable[[], None]
 
     log = logging.getLogger()
 
     def _initialize(self):
         self._is_test = True
-        self.context = context = zmq.asyncio.Context()
-        self.iopub_socket = context.socket(zmq.PUB)
-        self.stdin_socket = context.socket(zmq.ROUTER)
+        self.context = context = zmq.Context()
+        self.iopub_socket = zmq_anyio.Socket(context.socket(zmq.PUB))
+        self.stdin_socket = zmq_anyio.Socket(context.socket(zmq.ROUTER))
         self.test_sockets = [self.iopub_socket]
 
         for name in ["shell", "control"]:
-            socket = context.socket(zmq.ROUTER)
+            socket = zmq_anyio.Socket(context.socket(zmq.ROUTER))
             self.test_sockets.append(socket)
             setattr(self, f"{name}_socket", socket)
 
@@ -142,7 +131,7 @@ class KernelMixin:
 
     async def _wait_for_msg(self):
         while not self._reply:
-            await asyncio.sleep(0.1)
+            await sleep(0.1)
         _, msg = self.session.feed_identities(self._reply)
         return self.session.deserialize(msg)
 
@@ -166,6 +155,8 @@ class MockKernel(KernelMixin, Kernel):  # type:ignore
     def __init__(self, *args, **kwargs):
         self._initialize()
         self.shell = MagicMock()
+        self.shell_stop = Event()
+        self.control_stop = Event()
         super().__init__(*args, **kwargs)
 
     def do_execute(
@@ -187,6 +178,8 @@ class MockKernel(KernelMixin, Kernel):  # type:ignore
 class MockIPyKernel(KernelMixin, IPythonKernel):  # type:ignore
     def __init__(self, *args, **kwargs):
         self._initialize()
+        self.shell_stop = Event()
+        self.control_stop = Event()
         super().__init__(*args, **kwargs)
 
 
