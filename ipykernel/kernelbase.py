@@ -58,6 +58,14 @@ from ipykernel.jsonutil import json_clean
 from ._version import kernel_protocol_version
 from .iostream import OutStream
 
+_AWAITABLE_MESSAGE: str = (
+    "For consistency across implementations, it is recommended that `{func_name}`"
+    " either be a coroutine function (`async def`) or return an awaitable object"
+    " (like an `asyncio.Future`). It might become a requirement in the future."
+    " Coroutine functions and awaitables have been supported since"
+    " ipykernel 6.0 (2021)."
+)
+
 
 def _accepts_parameters(meth, param_names):
     parameters = inspect.signature(meth).parameters
@@ -745,6 +753,12 @@ class Kernel(SingletonConfigurable):
 
         if inspect.isawaitable(reply_content):
             reply_content = await reply_content
+        else:
+            warnings.warn(
+                _AWAITABLE_MESSAGE.format(func_name="execute_request"),
+                PendingDeprecationWarning,
+                stacklevel=1,
+            )
 
         # Flush output before sending the reply.
         if sys.stdout is not None:
@@ -805,6 +819,12 @@ class Kernel(SingletonConfigurable):
         matches = self.do_complete(code, cursor_pos)
         if inspect.isawaitable(matches):
             matches = await matches
+        else:
+            warnings.warn(
+                _AWAITABLE_MESSAGE.format(func_name="do_complete"),
+                PendingDeprecationWarning,
+                stacklevel=1,
+            )
 
         matches = json_clean(matches)
         self.session.send(socket, "complete_reply", matches, parent, ident)
@@ -833,6 +853,12 @@ class Kernel(SingletonConfigurable):
         )
         if inspect.isawaitable(reply_content):
             reply_content = await reply_content
+        else:
+            warnings.warn(
+                _AWAITABLE_MESSAGE.format(func_name="do_inspect"),
+                PendingDeprecationWarning,
+                stacklevel=1,
+            )
 
         # Before we send this object over, we scrub it for JSON usage
         reply_content = json_clean(reply_content)
@@ -852,6 +878,12 @@ class Kernel(SingletonConfigurable):
         reply_content = self.do_history(**content)
         if inspect.isawaitable(reply_content):
             reply_content = await reply_content
+        else:
+            warnings.warn(
+                _AWAITABLE_MESSAGE.format(func_name="do_history"),
+                PendingDeprecationWarning,
+                stacklevel=1,
+            )
 
         reply_content = json_clean(reply_content)
         msg = self.session.send(socket, "history_reply", reply_content, parent, ident)
@@ -974,6 +1006,12 @@ class Kernel(SingletonConfigurable):
         content = self.do_shutdown(parent["content"]["restart"])
         if inspect.isawaitable(content):
             content = await content
+        else:
+            warnings.warn(
+                _AWAITABLE_MESSAGE.format(func_name="do_shutdown"),
+                PendingDeprecationWarning,
+                stacklevel=1,
+            )
         self.session.send(socket, "shutdown_reply", content, parent, ident=ident)
         # same content, but different msg_id for broadcasting on IOPub
         self._shutdown_message = self.session.msg("shutdown_reply", content, parent)
@@ -998,6 +1036,12 @@ class Kernel(SingletonConfigurable):
         reply_content = self.do_is_complete(code)
         if inspect.isawaitable(reply_content):
             reply_content = await reply_content
+        else:
+            warnings.warn(
+                _AWAITABLE_MESSAGE.format(func_name="do_is_complete"),
+                PendingDeprecationWarning,
+                stacklevel=1,
+            )
         reply_content = json_clean(reply_content)
         reply_msg = self.session.send(socket, "is_complete_reply", reply_content, parent, ident)
         self.log.debug("%s", reply_msg)
@@ -1014,6 +1058,12 @@ class Kernel(SingletonConfigurable):
         reply_content = self.do_debug_request(content)
         if inspect.isawaitable(reply_content):
             reply_content = await reply_content
+        else:
+            warnings.warn(
+                _AWAITABLE_MESSAGE.format(func_name="do_debug_request"),
+                PendingDeprecationWarning,
+                stacklevel=1,
+            )
         reply_content = json_clean(reply_content)
         reply_msg = self.session.send(socket, "debug_reply", reply_content, parent, ident)
         self.log.debug("%s", reply_msg)
