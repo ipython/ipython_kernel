@@ -17,7 +17,7 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "debugpy>=1.8.1",
     "ipython>=7.23.1",

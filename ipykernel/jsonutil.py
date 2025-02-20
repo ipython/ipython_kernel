@@ -156,7 +156,7 @@ def json_clean(obj):  # pragma: no cover
         for k, v in obj.items():
             out[str(k)] = json_clean(v)
         return out
-    if isinstance(obj, (datetime, date)):
+    if isinstance(obj, datetime | date):
         return obj.strftime(ISO8601)
 
     # we don't understand it, it's probably an unserializable object

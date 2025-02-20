@@ -1,8 +1,9 @@
 import asyncio
 import logging
 import os
+from collections.abc import Callable
 from math import inf
-from typing import Any, Callable, no_type_check
+from typing import Any, no_type_check
 from unittest.mock import MagicMock
 
 import pytest

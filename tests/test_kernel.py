@@ -635,7 +635,7 @@ def test_sequential_control_messages():
 
         # Check messages are processed in order, one at a time, and of a sensible duration.
         previous_end = None
-        for reply, sleep in zip(replies, sleeps):
+        for reply, sleep in zip(replies, sleeps, strict=False):
             start = ensure_datetime(reply["metadata"]["started"])
             end = ensure_datetime(reply["header"]["date"])
 
