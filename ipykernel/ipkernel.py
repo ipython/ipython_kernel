@@ -508,7 +508,7 @@ class IPythonKernel(KernelBase):
 
         return reply_content
 
-    def do_complete(self, code, cursor_pos):
+    async def do_complete(self, code, cursor_pos):
         """Handle code completion."""
         if _use_experimental_60_completion and self.use_experimental_completions:
             return self._experimental_do_complete(code, cursor_pos)
@@ -578,7 +578,7 @@ class IPythonKernel(KernelBase):
             "status": "ok",
         }
 
-    def do_inspect(self, code, cursor_pos, detail_level=0, omit_sections=()):
+    async def do_inspect(self, code, cursor_pos, detail_level=0, omit_sections=()):
         """Handle code inspection."""
         name = token_at_cursor(code, cursor_pos)
 
@@ -606,7 +606,7 @@ class IPythonKernel(KernelBase):
 
         return reply_content
 
-    def do_history(
+    async def do_history(
         self,
         hist_access_type,
         output,
@@ -642,13 +642,13 @@ class IPythonKernel(KernelBase):
             "history": list(hist),
         }
 
-    def do_shutdown(self, restart):
+    async def do_shutdown(self, restart):
         """Handle kernel shutdown."""
         if self.shell:
             self.shell.exit_now = True
         return dict(status="ok", restart=restart)
 
-    def do_is_complete(self, code):
+    async def do_is_complete(self, code):
         """Handle an is_complete request."""
         transformer_manager = getattr(self.shell, "input_transformer_manager", None)
         if transformer_manager is None:

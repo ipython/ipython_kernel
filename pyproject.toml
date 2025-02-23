@@ -231,7 +231,8 @@ filterwarnings= [
   "ignore:unclosed database in <sqlite3.Connection:ResourceWarning",
 
   # ignore deprecated non async during tests:
-  "always:For consistency across implementations, it is recommended that:PendingDeprecationWarning",
+  "error:For consistency across implementations, it is recommended that:PendingDeprecationWarning",
+
 
 ]
 
