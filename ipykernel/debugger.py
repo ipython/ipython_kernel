@@ -21,6 +21,8 @@ except ImportError:
 from .compiler import get_file_name, get_tmp_directory, get_tmp_hash_seed
 
 try:
+    if "PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING" not in os.environ:
+        os.environ["PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING"] = "1"
     # This import is required to have the next ones working...
     from debugpy.server import api  # noqa: F401
 
