@@ -434,6 +434,7 @@ class IPythonKernel(KernelBase):
                 try:
                     async with create_task_group() as tg:
                         execution = Execution()
+                        self.shell_is_blocking = False
                         self.shell_is_awaiting = True
                         tg.start_soon(run, execution)
                         execution.interrupt = await to_thread.run_sync(self.shell_interrupt.get)

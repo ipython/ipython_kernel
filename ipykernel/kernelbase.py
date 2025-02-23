@@ -749,7 +749,9 @@ class Kernel(SingletonConfigurable):
             do_execute_args["cell_id"] = cell_id
 
         # Call do_execute with the appropriate arguments
+        self.shell_is_blocking = True
         reply_content = self.do_execute(**do_execute_args)
+        self.shell_is_blocking = False
 
         if inspect.isawaitable(reply_content):
             reply_content = await reply_content
