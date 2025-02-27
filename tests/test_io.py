@@ -118,6 +118,25 @@ async def test_outstream(anyio_backend, iopub_thread):
         assert stream.writable()
 
 
+async def test_outstream_hooks(anyio_backend, iopub_thread):
+    session = Session()
+
+    stream = OutStream(session, iopub_thread, "stdout")
+
+    with stream:
+        hook_called = False
+
+        def hook(msg):
+            nonlocal hook_called
+            hook_called = True
+            return msg
+
+        stream.register_hook(hook)
+        stream.write("hi")
+        stream.flush()
+        assert hook_called
+
+
 @pytest.mark.anyio()
 async def test_event_pipe_gc(iopub_thread):
     session = Session(key=b"abc")

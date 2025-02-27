@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import atexit
 import contextvars
+import functools
 import io
 import os
 import sys
@@ -620,10 +621,19 @@ class OutStream(TextIOBase):
         else:
             self._flush()
 
+    @property
     def _flush(self):
+        """Prepare _flush_impl partial to be scheduled on the IO thread.
+
+        This indirection is necessary to ensure _flush_impl calls hooks
+        registered from the current thread (as they are thread-local).
+        """
+        return functools.partial(self._flush_impl, self._hooks)
+
+    def _flush_impl(self, hooks=()):
         """This is where the actual send happens.
 
-        _flush should generally be called in the IO thread,
+        _flush_impl should generally be called in the IO thread,
         unless the thread has been destroyed (e.g. forked subprocess).
         """
         self._flush_pending = False
@@ -648,7 +658,7 @@ class OutStream(TextIOBase):
                 # Each transform either returns a new
                 # message or None. If None is returned,
                 # the message has been 'used' and we return.
-                for hook in self._hooks:
+                for hook in hooks:
                     msg = hook(msg)
                     if msg is None:
                         return
