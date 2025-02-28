@@ -134,12 +134,6 @@ Submodules
    :show-inheritance:
 
 
-.. automodule:: ipykernel.trio_runner
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-
 .. automodule:: ipykernel.zmqshell
    :members:
    :undoc-members:

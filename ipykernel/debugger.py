@@ -242,7 +242,7 @@ class DebugpyClient:
         self.log.debug("DEBUGPYCLIENT:")
         self.log.debug(self.routing_id)
         self.log.debug(buf)
-        await self.debugpy_socket.send_multipart((self.routing_id, buf))
+        await self.debugpy_socket.asend_multipart((self.routing_id, buf)).wait()
 
     async def _wait_for_response(self):
         # Since events are never pushed to the message_queue
@@ -438,7 +438,7 @@ class Debugger:
                 (self.shell_socket.getsockopt(ROUTING_ID)),
             )
 
-            msg = await self.shell_socket.recv_multipart()
+            msg = await self.shell_socket.arecv_multipart().wait()
             ident, msg = self.session.feed_identities(msg, copy=True)
             try:
                 msg = self.session.deserialize(msg, content=True, copy=True)

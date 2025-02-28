@@ -30,24 +30,23 @@ def test_async_await():
     assert content["status"] == "ok", content
 
 
-# FIXME: @pytest.mark.parametrize("asynclib", ["asyncio", "trio", "curio"])
 @pytest.mark.skipif(os.name == "nt", reason="Cannot interrupt on Windows")
-@pytest.mark.parametrize("asynclib", ["asyncio"])
-def test_async_interrupt(asynclib, request):
+@pytest.mark.parametrize("anyio_backend", ["asyncio"])  # FIXME: %autoawait trio
+def test_async_interrupt(anyio_backend, request):
     assert KC is not None
     assert KM is not None
     try:
-        __import__(asynclib)
+        __import__(anyio_backend)
     except ImportError:
-        pytest.skip("Requires %s" % asynclib)
-    request.addfinalizer(lambda: execute("%autoawait asyncio", KC))
+        pytest.skip("Requires %s" % anyio_backend)
+    request.addfinalizer(lambda: execute(f"%autoawait {anyio_backend}", KC))
 
     flush_channels(KC)
-    msg_id, content = execute("%autoawait " + asynclib, KC)
+    msg_id, content = execute(f"%autoawait {anyio_backend}", KC)
     assert content["status"] == "ok", content
 
     flush_channels(KC)
-    msg_id = KC.execute(f"print('begin'); import {asynclib}; await {asynclib}.sleep(5)")
+    msg_id = KC.execute(f"print('begin'); import {anyio_backend}; await {anyio_backend}.sleep(5)")
     busy = KC.get_iopub_msg(timeout=TIMEOUT)
     validate_message(busy, "status", msg_id)
     assert busy["content"]["execution_state"] == "busy"

@@ -12,7 +12,7 @@ import typing as t
 from dataclasses import dataclass
 
 import comm
-import zmq.asyncio
+import zmq_anyio
 from anyio import TASK_STATUS_IGNORED, create_task_group, to_thread
 from anyio.abc import TaskStatus
 from IPython.core import release
@@ -93,7 +93,7 @@ class IPythonKernel(KernelBase):
         help="Set this flag to False to deactivate the use of experimental IPython completion APIs.",
     ).tag(config=True)
 
-    debugpy_socket = Instance(zmq.asyncio.Socket, allow_none=True)
+    debugpy_socket = Instance(zmq_anyio.Socket, allow_none=True)
 
     user_module = Any()
 
@@ -229,7 +229,8 @@ class IPythonKernel(KernelBase):
     }
 
     async def process_debugpy(self):
-        async with create_task_group() as tg:
+        assert self.debugpy_socket is not None
+        async with self.debug_shell_socket, self.debugpy_socket, create_task_group() as tg:
             tg.start_soon(self.receive_debugpy_messages)
             tg.start_soon(self.poll_stopped_queue)
             await to_thread.run_sync(self.debugpy_stop.wait)
@@ -252,7 +253,7 @@ class IPythonKernel(KernelBase):
 
         if msg is None:
             assert self.debugpy_socket is not None
-            msg = await self.debugpy_socket.recv_multipart()
+            msg = await self.debugpy_socket.arecv_multipart().wait()
         # The first frame is the socket id, we can drop it
         frame = msg[1].decode("utf-8")
         self.log.debug("Debugpy received: %s", frame)

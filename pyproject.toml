@@ -29,10 +29,11 @@ dependencies = [
     "nest_asyncio>=1.4",
     "matplotlib-inline>=0.1",
     'appnope>=0.1.2;platform_system=="Darwin"',
-    "pyzmq>=25.0",
+    "pyzmq>=26.0",
     "psutil>=5.7",
     "packaging>=22",
-    "anyio>=4.2.0",
+    "anyio>=4.8.0,<5.0.0",
+    "zmq-anyio >=0.3.0",
 ]
 
 [project.urls]
@@ -230,9 +231,12 @@ filterwarnings= [
   # ignore unclosed sqlite in traits
   "ignore:unclosed database in <sqlite3.Connection:ResourceWarning",
 
+  # ignore timeout cancel coroutine not awaited in zmq-anyio
+  "ignore: coroutine 'Poller._apoll.<locals>.trigger_timeout' was never awaited",
+  "ignore: Unclosed socket",
+
   # ignore deprecated non async during tests:
   "always:For consistency across implementations, it is recommended that:PendingDeprecationWarning",
-
 ]
 
 [tool.coverage.report]
@@ -342,3 +346,6 @@ ignore = ["W002"]
 
 [tool.repo-review]
 ignore = ["PY007", "PP308", "GH102", "MY101"]
+
+[tool.hatch.metadata]
+allow-direct-references = true

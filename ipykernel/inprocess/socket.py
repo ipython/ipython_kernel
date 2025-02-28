@@ -65,4 +65,8 @@ class DummySocket(HasTraits):
         return statistics.current_buffer_used != 0
 
     def close(self):
-        pass
+        if self.is_shell:
+            self.in_send_stream.close()
+            self.in_receive_stream.close()
+            self.out_send_stream.close()
+            self.out_receive_stream.close()

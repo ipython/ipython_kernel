@@ -92,13 +92,17 @@ class Heartbeat(Thread):
     def run(self):
         """Run the heartbeat thread."""
         self.name = "Heartbeat"
-        self.socket = self.context.socket(zmq.ROUTER)
-        self.socket.linger = 1000
+
         try:
+            self.socket = self.context.socket(zmq.ROUTER)
+            self.socket.linger = 1000
             self._bind_socket()
         except Exception:
-            self.socket.close()
-            raise
+            try:
+                self.socket.close()
+            except Exception:
+                pass
+            return
 
         while True:
             try:

@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Optional
 
 import zmq
-import zmq.asyncio
+import zmq_anyio
 from anyio import create_task_group, run, to_thread
 from IPython.core.application import (  # type:ignore[attr-defined]
     BaseIPythonApplication,
@@ -333,15 +333,15 @@ class IPKernelApp(BaseIPythonApplication, InteractiveShellApp, ConnectionFileMix
         """Create a context, a session, and the kernel sockets."""
         self.log.info("Starting the kernel at pid: %i", os.getpid())
         assert self.context is None, "init_sockets cannot be called twice!"
-        self.context = context = zmq.asyncio.Context()
+        self.context = context = zmq.Context()
         atexit.register(self.close)
 
-        self.shell_socket = context.socket(zmq.ROUTER)
+        self.shell_socket = zmq_anyio.Socket(context.socket(zmq.ROUTER))
         self.shell_socket.linger = 1000
         self.shell_port = self._bind_socket(self.shell_socket, self.shell_port)
         self.log.debug("shell ROUTER Channel on port: %i", self.shell_port)
 
-        self.stdin_socket = zmq.Context(context).socket(zmq.ROUTER)
+        self.stdin_socket = context.socket(zmq.ROUTER)
         self.stdin_socket.linger = 1000
         self.stdin_port = self._bind_socket(self.stdin_socket, self.stdin_port)
         self.log.debug("stdin ROUTER Channel on port: %i", self.stdin_port)
@@ -357,18 +357,19 @@ class IPKernelApp(BaseIPythonApplication, InteractiveShellApp, ConnectionFileMix
 
     def init_control(self, context):
         """Initialize the control channel."""
-        self.control_socket = context.socket(zmq.ROUTER)
+        self.control_socket = zmq_anyio.Socket(context.socket(zmq.ROUTER))
         self.control_socket.linger = 1000
         self.control_port = self._bind_socket(self.control_socket, self.control_port)
         self.log.debug("control ROUTER Channel on port: %i", self.control_port)
 
-        self.debugpy_socket = context.socket(zmq.STREAM)
+        self.debugpy_socket = zmq_anyio.Socket(context.socket(zmq.STREAM))
         self.debugpy_socket.linger = 1000
 
-        self.debug_shell_socket = context.socket(zmq.DEALER)
+        self.debug_shell_socket = zmq_anyio.Socket(context.socket(zmq.DEALER))
         self.debug_shell_socket.linger = 1000
-        if self.shell_socket.getsockopt(zmq.LAST_ENDPOINT):
-            self.debug_shell_socket.connect(self.shell_socket.getsockopt(zmq.LAST_ENDPOINT))
+        last_endpoint = self.shell_socket.getsockopt(zmq.LAST_ENDPOINT)
+        if last_endpoint:
+            self.debug_shell_socket.connect(last_endpoint)
 
         if hasattr(zmq, "ROUTER_HANDOVER"):
             # set router-handover to workaround zeromq reconnect problems
@@ -381,7 +382,7 @@ class IPKernelApp(BaseIPythonApplication, InteractiveShellApp, ConnectionFileMix
 
     def init_iopub(self, context):
         """Initialize the iopub channel."""
-        self.iopub_socket = context.socket(zmq.PUB)
+        self.iopub_socket = zmq_anyio.Socket(context.socket(zmq.PUB))
         self.iopub_socket.linger = 1000
         self.iopub_port = self._bind_socket(self.iopub_socket, self.iopub_port)
         self.log.debug("iopub PUB Channel on port: %i", self.iopub_port)
@@ -679,43 +680,6 @@ class IPKernelApp(BaseIPythonApplication, InteractiveShellApp, ConnectionFileMix
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
-    def _init_asyncio_patch(self):
-        """set default asyncio policy to be compatible with tornado
-
-        Tornado 6 (at least) is not compatible with the default
-        asyncio implementation on Windows
-
-        Pick the older SelectorEventLoopPolicy on Windows
-        if the known-incompatible default policy is in use.
-
-        Support for Proactor via a background thread is available in tornado 6.1,
-        but it is still preferable to run the Selector in the main thread
-        instead of the background.
-
-        do this as early as possible to make it a low priority and overridable
-
-        ref: https://github.com/tornadoweb/tornado/issues/2608
-
-        FIXME: if/when tornado supports the defaults in asyncio without threads,
-               remove and bump tornado requirement for py38.
-               Most likely, this will mean a new Python version
-               where asyncio.ProactorEventLoop supports add_reader and friends.
-
-        """
-        if sys.platform.startswith("win"):
-            import asyncio
-
-            try:
-                from asyncio import WindowsProactorEventLoopPolicy, WindowsSelectorEventLoopPolicy
-            except ImportError:
-                pass
-                # not affected
-            else:
-                if type(asyncio.get_event_loop_policy()) is WindowsProactorEventLoopPolicy:
-                    # WindowsProactorEventLoopPolicy is not compatible with tornado 6
-                    # fallback to the pre-3.8 default of Selector
-                    asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
-
     def init_pdb(self):
         """Replace pdb with IPython's version that is interruptible.
 
@@ -735,7 +699,6 @@ class IPKernelApp(BaseIPythonApplication, InteractiveShellApp, ConnectionFileMix
     @catch_config_error
     def initialize(self, argv=None) -> None:
         """Initialize the application."""
-        self._init_asyncio_patch()
         super().initialize(argv)
         if self.subapp is not None:
             return
@@ -772,7 +735,7 @@ class IPKernelApp(BaseIPythonApplication, InteractiveShellApp, ConnectionFileMix
         sys.stdout.flush()
         sys.stderr.flush()
 
-    async def _start(self) -> None:
+    async def _start(self, backend: str) -> None:
         """
         Async version of start, when the loop is not controlled by IPykernel
 
@@ -783,12 +746,23 @@ class IPKernelApp(BaseIPythonApplication, InteractiveShellApp, ConnectionFileMix
             return
         if self.poller is not None:
             self.poller.start()
+
+        if backend == "asyncio" and sys.platform == "win32":
+            import asyncio
+
+            policy = asyncio.get_event_loop_policy()
+            if policy.__class__.__name__ == "WindowsProactorEventLoopPolicy":
+                from anyio._core._asyncio_selector_thread import get_selector
+
+                selector = get_selector()
+                selector._thread.pydev_do_not_trace = True
+
         await self.main()
 
     def start(self) -> None:
         """Start the application."""
         backend = "trio" if self.trio_loop else "asyncio"
-        run(self._start, backend=backend)
+        run(partial(self._start, backend), backend=backend)
 
     async def _wait_to_enter_eventloop(self) -> None:
         await to_thread.run_sync(self.kernel._eventloop_set.wait)

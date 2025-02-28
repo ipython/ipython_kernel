@@ -211,46 +211,53 @@ class ZMQDisplayPublisherTests(unittest.TestCase):
 
 
 def test_magics(tmp_path):
-    context = zmq.Context()
-    socket = context.socket(zmq.PUB)
-    shell = InteractiveShell()
-    shell.user_ns["hi"] = 1
-    magics = KernelMagics(shell)
+    try:
+        context = zmq.Context()
+        socket = context.socket(zmq.PUB)
+        shell = InteractiveShell()
+        shell.user_ns["hi"] = 1
+        magics = KernelMagics(shell)
 
-    tmp_file = tmp_path / "test.txt"
-    tmp_file.write_text("hi", "utf8")
-    magics.edit(str(tmp_file))
-    payload = shell.payload_manager.read_payload()[0]
-    assert payload["filename"] == str(tmp_file)
+        tmp_file = tmp_path / "test.txt"
+        tmp_file.write_text("hi", "utf8")
+        magics.edit(str(tmp_file))
+        payload = shell.payload_manager.read_payload()[0]
+        assert payload["filename"] == str(tmp_file)
 
-    magics.clear([])
-    magics.less(str(tmp_file))
-    if os.name == "posix":
-        magics.man("ls")
-    magics.autosave("10")
-
-    socket.close()
-    context.destroy()
+        magics.clear([])
+        magics.less(str(tmp_file))
+        if os.name == "posix":
+            magics.man("ls")
+        magics.autosave("10")
+    finally:
+        socket.close()
+        context.destroy()
+        shell.configurables = []
+        InteractiveShell.clear_instance()
 
 
 def test_zmq_interactive_shell(kernel):
-    shell = ZMQInteractiveShell()
+    try:
+        shell = ZMQInteractiveShell()
 
-    with pytest.raises(RuntimeError):
-        shell.enable_gui("tk")
+        with pytest.raises(RuntimeError):
+            shell.enable_gui("tk")
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        shell.data_pub_class = MagicMock()  # type:ignore
-        shell.data_pub
-    shell.kernel = kernel
-    shell.set_next_input("hi")
-    assert shell.get_parent() is None
-    if os.name == "posix":
-        shell.system_piped("ls")
-    else:
-        shell.system_piped("dir")
-    shell.ask_exit()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            shell.data_pub_class = MagicMock()  # type:ignore
+            shell.data_pub
+        shell.kernel = kernel
+        shell.set_next_input("hi")
+        assert shell.get_parent() is None
+        if os.name == "posix":
+            shell.system_piped("ls")
+        else:
+            shell.system_piped("dir")
+        shell.ask_exit()
+    finally:
+        shell.configurables = []
+        ZMQInteractiveShell.clear_instance()
 
 
 if __name__ == "__main__":

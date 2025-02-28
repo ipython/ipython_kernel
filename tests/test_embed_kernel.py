@@ -145,7 +145,10 @@ def test_embed_kernel_namespace():
     with setup_kernel(cmd) as client:
         # oinfo a (int)
         client.inspect("a")
-        msg = client.get_shell_msg(timeout=TIMEOUT)
+        while True:
+            msg = client.get_shell_msg(timeout=TIMEOUT)
+            if msg["msg_type"] == "inspect_reply":
+                break
         content = msg["content"]
         assert content["found"]
         text = content["data"]["text/plain"]
@@ -153,7 +156,10 @@ def test_embed_kernel_namespace():
 
         # oinfo b (str)
         client.inspect("b")
-        msg = client.get_shell_msg(timeout=TIMEOUT)
+        while True:
+            msg = client.get_shell_msg(timeout=TIMEOUT)
+            if msg["msg_type"] == "inspect_reply":
+                break
         content = msg["content"]
         assert content["found"]
         text = content["data"]["text/plain"]
@@ -161,7 +167,10 @@ def test_embed_kernel_namespace():
 
         # oinfo c (undefined)
         client.inspect("c")
-        msg = client.get_shell_msg(timeout=TIMEOUT)
+        while True:
+            msg = client.get_shell_msg(timeout=TIMEOUT)
+            if msg["msg_type"] == "inspect_reply":
+                break
         content = msg["content"]
         assert not content["found"]
 
@@ -186,7 +195,10 @@ def test_embed_kernel_reentrant():
     with setup_kernel(cmd) as client:
         for i in range(5):
             client.inspect("count")
-            msg = client.get_shell_msg(timeout=TIMEOUT)
+            while True:
+                msg = client.get_shell_msg(timeout=TIMEOUT)
+                if msg["msg_type"] == "inspect_reply":
+                    break
             content = msg["content"]
             assert content["found"]
             text = content["data"]["text/plain"]

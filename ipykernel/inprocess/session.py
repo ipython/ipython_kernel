@@ -12,7 +12,7 @@ class Session(_Session):
         mode, content, copy have no effect, but are present for superclass compatibility
 
         """
-        return await socket.recv_multipart()
+        return await socket.arecv_multipart().wait()
 
     def send(
         self,

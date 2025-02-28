@@ -130,7 +130,7 @@ async def test_trio_loop(anyio_backend):
     app.kernel = MockKernel()
     app.init_sockets()
     async with trio.open_nursery() as nursery:
-        nursery.start_soon(app._start)
+        nursery.start_soon(lambda: app._start("trio"))
         nursery.start_soon(trigger_stop)
     app.cleanup_connection_file()
     app.kernel.destroy()
