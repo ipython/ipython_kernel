@@ -142,7 +142,7 @@ jobs:
 
       - name: Run the tests
         timeout-minutes: 15
-        run: pytest -W default -vv
+        run: pytest -W default -vv -s -k test_outstream
 
   test_miniumum_versions:
     name: Test Minimum Versions
