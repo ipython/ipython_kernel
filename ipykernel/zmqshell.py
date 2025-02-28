@@ -472,6 +472,18 @@ class KernelMagics(Magics):
 class ZMQInteractiveShell(InteractiveShell):
     """A subclass of InteractiveShell for ZMQ."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # tqdm has an incorrect detection of ZMQInteractiveShell when launch via
+        # a scheduler that bypass IPKernelApp Think of JupyterHub cluster
+        # spawners and co. as of end of Feb 2025, the maintainer has been
+        # unresponsive for 5 months, to our fix, so we implement a workaround. I
+        # don't like it but we have few other choices.
+        # See https://github.com/tqdm/tqdm/pull/1628
+        if "IPKernelApp" not in self.config:
+            self.config.IPKernelApp.tqdm = "dummy value for https://github.com/tqdm/tqdm/pull/1628"
+
     displayhook_class = Type(ZMQShellDisplayHook)
     display_pub_class = Type(ZMQDisplayPublisher)
     data_pub_class = Any()  # type:ignore[assignment]
